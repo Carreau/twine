@@ -13,7 +13,7 @@
 # limitations under the License.
 from __future__ import absolute_import, unicode_literals, print_function
 
-from tqdm import tqdm as ProgressBar
+from tqdm import tqdm as tqdm
 
 import requests
 from requests import adapters
@@ -32,6 +32,14 @@ LEGACY_PYPI = 'https://pypi.python.org/'
 WAREHOUSE = 'https://upload.pypi.org/'
 OLD_WAREHOUSE = 'https://upload.pypi.io/'
 
+class ProgressBar(tqdm):
+
+
+    def update_to(self, n):
+        """
+        identical to update, except `n` should be current value and not delta.
+        """
+        self.update(n-self.n)
 
 class Repository(object):
     def __init__(self, repository_url, username, password):
@@ -122,13 +130,8 @@ class Repository(object):
             ))
             encoder = MultipartEncoder(data_to_send)
             bar = ProgressBar(total=encoder.len, unit='bytes', unit_scale=True, leave=False)
-            def update_progressbar(monitor, _cache=[0]):
-                total_read = monitor.bytes_read
-                bar.update(total_read - _cache[0])
-                _cache[0] = total_read
-
             monitor = MultipartEncoderMonitor(
-                encoder, update_progressbar
+                encoder, lambda monitor: bar.update_to(monitor.bytes_read)
             )
 
             resp = self.session.post(
