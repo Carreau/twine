@@ -13,7 +13,7 @@
 # limitations under the License.
 from __future__ import absolute_import, unicode_literals, print_function
 
-from clint.textui.progress import Bar as ProgressBar
+from tqdm import tqdm as ProgressBar
 
 import requests
 from requests import adapters
@@ -121,9 +121,14 @@ class Repository(object):
                 (package.basefilename, fp, "application/octet-stream"),
             ))
             encoder = MultipartEncoder(data_to_send)
-            bar = ProgressBar(expected_size=encoder.len, filled_char='=')
+            bar = ProgressBar(total=encoder.len, unit='bytes', unit_scale=True, leave=False)
+            def update_progressbar(monitor, _cache=[0]):
+                total_read = monitor.bytes_read
+                bar.update(total_read - _cache[0])
+                _cache[0] = total_read
+
             monitor = MultipartEncoderMonitor(
-                encoder, lambda monitor: bar.show(monitor.bytes_read)
+                encoder, update_progressbar
             )
 
             resp = self.session.post(
@@ -132,7 +137,7 @@ class Repository(object):
                 allow_redirects=False,
                 headers={'Content-Type': monitor.content_type},
             )
-            bar.done()
+            bar.close()
 
         return resp
 
